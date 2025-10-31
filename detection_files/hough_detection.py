@@ -33,7 +33,7 @@ def detect_clock_circle(image):
     else:
         return None
 
-def detect_lines_hough(edges, min_line_length=150, max_line_gap=10):
+def detect_lines_hough(edges, min_line_length=80, max_line_gap=15):
     """
     Detect straight lines using Probabilistic Hough Line Transform.
     This will detect the clock hands as lines.
@@ -50,7 +50,7 @@ def detect_lines_hough(edges, min_line_length=150, max_line_gap=10):
     lines = cv2.HoughLinesP(edges, 
                             rho=1, 
                             theta=np.pi / 180, 
-                            threshold=50, 
+                            threshold=40, 
                             minLineLength=min_line_length, 
                             maxLineGap=max_line_gap)
     if lines is not None:

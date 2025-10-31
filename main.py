@@ -5,7 +5,6 @@ Orchestrates all modules to detect and read time from a clock image.
 
 import os
 import cv2
-import numpy as np
 
 # Import preprocessing utilities
 from preprocessing import preprocess_image, apply_gaussian_blur
@@ -16,8 +15,9 @@ from detection_files.blob_detection import detect_clock_center_blob
 from detection_files.hand_detection import identify_hour_and_minute_hands, read_time_from_hands
 
 # Import logging utilities
-from logger import (
+from chronicle import (
     log_section_header,
+    log_info,
     log_step,
     log_error,
     log_file_saved,
@@ -26,6 +26,7 @@ from logger import (
     log_final_result
 )
 
+IMAGE_PATH = "clock_4"
 
 def read_clock_time(image_path, visualize=True, save_output=False):
     """
@@ -140,10 +141,16 @@ def read_clock_time(image_path, visualize=True, save_output=False):
     cv2.imwrite(f"{processed_imgs_dir}/detected_lines.png", line_image)
 
     # Identify hour and minute hands from detected lines
+    aligned = False
     hour_markers = identify_hour_and_minute_hands(lines, clock_center)
     if hour_markers is None or hour_markers[0] is None or hour_markers[1] is None:
         log_error("Hour marker detection failed", indentation_tabs=1, newline_after=1)
         return None
+    if len(hour_markers) == 0:
+        log_error("Not found markers", indentation_tabs=1, newline_after=1)
+        return None
+    if all((hour_markers[0] == hour_markers[1]).flatten()):
+        aligned = True
 
     # Log and visualize identified clock hands (green)
     log_detection_result(
@@ -161,7 +168,10 @@ def read_clock_time(image_path, visualize=True, save_output=False):
     log_step(6, 6, "Clock Hands Detection and Time Calculation")
 
     # Calculate time from hand angles
-    estimated_time = read_time_from_hands(hour_markers[0], hour_markers[1], clock_center)
+    if not aligned:
+        estimated_time = read_time_from_hands(hour_markers[0], hour_markers[1], clock_center)
+    else:
+        estimated_time = read_time_from_hands(hour_markers[0], hour_markers[0], clock_center)
     
     if estimated_time:
         log_detection_result("Estimated Time", estimated_time)
@@ -174,10 +184,26 @@ def read_clock_time(image_path, visualize=True, save_output=False):
 
 def main():
     """Main entry point for the clock time detection application."""
-    IMAGE_PATH = "clock_2.jpg"
+
+    global IMAGE_PATH
+
+    # Search for the correct file format in the folder
+    folder_path = os.path.dirname(os.path.abspath(__file__))
+    valid_extensions = [".jpg", ".jpeg", ".png", ".bmp", ".tiff"]
+
+    for file_name in os.listdir(folder_path):
+        if file_name.startswith(IMAGE_PATH) and any(file_name.lower().endswith(ext) for ext in valid_extensions):
+            IMAGE_PATH = (os.path.join(folder_path, file_name))
+            break
+
+    if not IMAGE_PATH:
+        log_error("No valid image file found in the folder", indentation_tabs=1, newline_after=1)
+        return
     
     log_application_title("CLOCK TIME DETECTION APPLICATION")
     
+    log_info(f"Processing image: {IMAGE_PATH}")
+
     # Run the complete detection pipeline
     detected_time = read_clock_time(IMAGE_PATH, visualize=True, save_output=True)
     
